@@ -1,0 +1,89 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+
+# Function to scrape medicine availability and delivery date from Tata 1mg
+def scrape_tata_1mg(url, pincode):
+    import time
+    start_time = time.time()
+
+    service = Service('chromedriver.exe')  # Replace 'path_to_chromedriver' with the actual path to your chromedriver
+    options = Options()
+    options.add_argument("--headless")  # Run Chrome in headless mode (no UI)
+    options.add_argument("--disable-gpu")
+
+    driver = webdriver.Chrome(options=options)
+    driver.maximize_window()
+
+    driver.get(url)
+    try:
+        try:
+            apply_button = WebDriverWait(driver, 1).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR,
+                     "#update-city-modal > div > div.UpdateCityModal__update-confirm___1iV9N > div.UpdateCityModal__cancel-btn___2jWwS.UpdateCityModal__btn___oMW5n"))
+            )
+            apply_button.click()
+        except:
+            apply_button = WebDriverWait(driver, 1).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR,
+                                                "#eta-content > div > div.style__deliveryBox___g_mGG.style__padded___2vNu9.style__marginTop-12___36A_e > div.style__marginLeft-4___fp1Ae.style__delivery-cta___1C7Gt"))
+            )
+        apply_button.click()
+
+        pincode_input = WebDriverWait(driver, 1).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,
+                                            "#container > div > div.style__wrapper___1S4gB.style__vertical-aligner___3W6ut > div > div > div > div > div > div.styles__padding-20___Wy_Nw.styles__content___3072V > div.styles__sticky-input-wrapper___P-Kfd > div.styles__flex___11AYu.styles__spaceBetween___1Fvac.styles__input-wrapper___34GKg > div.styles__input-box___LiENa > div > div.InputField__flex___3-uuk.InputField__inputContainer___2UaoX > input"))
+        )
+        pincode_input.clear()
+        pincode_input.send_keys(pincode)
+        apply_button = WebDriverWait(driver, 1).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,
+                                            "#container > div > div.style__wrapper___1S4gB.style__vertical-aligner___3W6ut > div > div > div > div > div > div.styles__padding-20___Wy_Nw.styles__content___3072V > div.styles__sticky-input-wrapper___P-Kfd > div.styles__flex___11AYu.styles__spaceBetween___1Fvac.styles__input-wrapper___34GKg > div.styles__pincode-btn___2zO2k > button"))
+        )
+        apply_button.click()
+        #  If pincode is not found
+        try:
+            WebDriverWait(driver, 1).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR,
+                                                "#container > div > div.style__wrapper___1S4gB.style__vertical-aligner___3W6ut > div > div > div > div > div > div.styles__padding-20___Wy_Nw.styles__content___3072V > div.styles__sticky-input-wrapper___P-Kfd > div.styles__flex___11AYu.styles__spaceBetween___1Fvac.styles__input-wrapper___34GKg > div.styles__input-box___LiENa.styles__input-box-error___3AiqC > div > div.InputField__flex___3-uuk.InputField__justifyBetween___3Gm0G.InputField__alertContainer___ZJdVH > span")))
+            return {
+                "error": "Delivery not Available"
+            }
+        # if pincode found
+        except:
+            deliveryDate = WebDriverWait(driver, 1).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR,
+                                                "#eta-content > div > div.style__padded___2vNu9.style__headerText___3sw_C > span:nth-child(2)")))
+        print(deliveryDate.text)
+        price = WebDriverWait(driver, 1).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,
+                                            "#container > div > div > div.row.OtcPage__top-container___2JKJ- > div:nth-child(4) > div:nth-child(1) > div > div.OtcPriceBox__price-box___p13HY > div.PriceBoxPlanOption__option-container___3BpVv > div:nth-child(1) > div:nth-child(2) > span.PriceBoxPlanOption__offer-price___3v9x8.PriceBoxPlanOption__offer-price-cp___2QPU_")))
+        print(price.text)
+        print("--- %s seconds ---" % (time.time() - start_time))
+        return {
+            "delivery_date": deliveryDate,
+            "price": price,
+            "pincode": pincode,
+            "url": url
+        }
+
+    except Exception as e:
+        return {
+            "error": "Delivery not Available"
+        }
+    finally:
+        driver.quit()
+
+
+# User inputs
+user_url = input("Enter Tata 1mg URL for the medicine: ")
+user_pincode = input("Enter your pincode: ")
+
+# Scraping data
+result = scrape_tata_1mg(user_url, user_pincode)
+print(result)
