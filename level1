@@ -1,0 +1,73 @@
+import csv
+import re
+
+import requests
+from bs4 import BeautifulSoup
+
+link = "https://pharmeasy.in/online-medicine-order/browse?"
+med_link = "https://pharmeasy.in"
+
+
+def scrape_pharmeasy_data(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Extracting data elements here - adjust this as per the actual HTML structure of the Pharmeasy website
+        name = soup.find('h1', class_='MedicineOverviewSection_medicineName__dHDQi').text.strip()
+        mrp = soup.find('span', class_='PriceInfo_striked__Hk2U_')
+        if mrp:
+            mrp = mrp.text.strip()
+        else:
+            mrp = re.findall(r'[+-]?[0-9]+\.[0-9]+', soup.find("div", attrs={
+                "class": 'PriceInfo_ourPrice__jFYXr'
+            }).text)[0]
+        marketer = soup.find('div', class_='MedicineOverviewSection_brandName__rJFzE').text.strip()
+        salts = soup.find('div', class_='DescriptionTable_value__0GUMC')
+        Quantity = soup.find('div', class_='MedicineOverviewSection_measurementUnit__7m5C3').text.strip()
+
+        return name, mrp, marketer, salts, url, Quantity
+    else:
+        print("Failed to fetch data")
+        return None
+
+
+def scrape_pages(alphabet, writer):
+    counter = 0
+    page_count = 0
+
+    while counter < 1000:
+        r = requests.get(link + f"alphabet={alphabet}&page={page_count}")
+        soup = BeautifulSoup(r.text, "html.parser")
+        pages_div = soup.find("span", attrs={
+            "class": "PageIndex_text__SNJlR"})
+        max_iter = int(pages_div.text.split("/")[1])
+        medicines_links = [i['href'] for i in soup.findAll("a", href=True, attrs={
+            "class": "BrowseList_medicine__cQZkc"})]
+        print("*" for i in range(150))
+        print("page working on " + str(page_count))
+        page_count += 1
+        if page_count > max_iter:
+            break
+        print(len(medicines_links))
+        for i in medicines_links:
+            data = []
+            try:
+                scraped_data = scrape_pharmeasy_data(med_link + i)
+            except:
+                continue
+            if scraped_data:
+                data.append(scraped_data)
+                writer.writerows(data)
+                counter += 1
+
+
+# Writing data to CSV
+headers = ['Name', 'MRP', 'Manufacturer', 'Salts', 'Quantity ' 'URL']
+with open('pharmeasy_data.csv', 'w', newline='', encoding='utf-8') as file:
+    writer = csv.writer(file)
+    writer.writerow(headers)
+    print("Runing on B")
+    scrape_pages("b", writer)
+    print("Runing on F")
+    scrape_pages("f", writer)
